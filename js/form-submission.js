@@ -44,41 +44,35 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Prepare form data using new FormData(formElement)
-        // This object directly contains all form field values.
-        const formData = new FormData(contactForm);
+        // Prepare form data from the input fields
+        const data = {
+            name: nameInput.value.trim(),
+            email: emailInput.value.trim(),
+            message: messageInput.value.trim()
+        };
 
-        // --- Your Zapier Webhook URL (Keep this) ---
-        const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20284283/uyeiosy/';
+        // --- Your Formspree Endpoint URL ---
+        const FORMSPREE_ENDPOINT_URL = 'https://formspree.io/f/mkgbbrwj'; 
         // ------------------------------------------
 
         try {
-            const response = await fetch(ZAPIER_WEBHOOK_URL, {
+            const response = await fetch(FORMSPREE_ENDPOINT_URL, {
                 method: 'POST',
-                // ************************************************************
-                // IMPORTANT: REMOVE THE HEADERS OBJECT FOR 'Content-Type'
-                // When you send a FormData object directly as the body,
-                // fetch will automatically set the 'Content-Type' to
-                // 'multipart/form-data' which is considered a 'simple' type
-                // and helps avoid CORS preflight issues.
-                // ************************************************************
-                // headers: {
-                //     'Content-Type': 'application/json', // REMOVE THIS LINE
-                //     'Accept': 'application/json'         // AND THIS ONE
-                // },
-                body: formData // Send the FormData object directly
+                headers: {
+                    'Content-Type': 'application/json' // Essential for Formspree to correctly parse your JSON data
+                },
+                body: JSON.stringify(data) // Send your form data as a JSON string
             });
 
-            // Zapier webhooks typically return a 200 OK status on success
+            // Formspree returns a 2xx status code for success
             if (response.ok) {
                 displayMessage('Thank you for your message! I will get back to you soon.', 'success');
                 contactForm.reset(); // Clear the form
             } else {
-                // If Zapier webhook returns an error (e.g., non-2xx status)
-                // We might not get JSON back for errors with multipart/form-data
-                displayMessage('Oops! There was an error sending your message. Please try again or contact me directly.', 'error');
-                console.error('Zapier webhook response status:', response.status);
-                console.error('Zapier webhook response text:', await response.text());
+                // If Formspree returns an error, try to get the message from their response
+                const errorData = await response.json().catch(() => ({ message: 'Error desconocido.' }));
+                displayMessage(`Oops! Error: ${errorData.message || 'There was an error sending your message. Please try again.'}`, 'error');
+                console.error('Formspree error:', response.status, errorData);
             }
         } catch (error) {
             // Network errors or other unexpected issues
